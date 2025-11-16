@@ -4,7 +4,15 @@ WikiScrapper is a CLI tool to scrape documentation and wiki pages and convert th
 no AI things here, this scrape just work without any weird API outthere
 feed that wiki you scrape and feed it to your dumb AI
 
-This refactor focuses on:
+## What's it do?
+
+- Crawls a site starting from any URL.
+- Saves content as clean .txt or .md files.
+- Keeps the original site's folder structure (so .../guides/auth becomes output_dir/guides/auth.md).
+- Polite by default: adds a delay so you don't get IP-banned.
+- Stamps each file with metadata (Source URL, date, etc.) so you (and your LLM) know where it came from.
+
+### Big improvement refactor focuses on:
 - Respecting robots.txt
 - Robust network behavior (retries, timeouts)
 - URL normalization & deduplication
@@ -23,8 +31,9 @@ git clone https://github.com/liyankova/wikiscrapper.git
 cd wikiscrapper
 ```
 
-2. Install in editable mode:
+2. Set up a virtual environment (trust me, it's good practice):
 ```bash
+# only for macOS/linux with bash and zsh, other than that make sure to browse how to do
 python -m venv venv
 source venv/bin/activate
 pip install -e .
@@ -42,6 +51,9 @@ playwright install
 ## Usage
 
 ```bash
+# for knowing some of option and flag
+wikiscrapper --help 
+
 wikiscrapper run START_URL -s "article,.content" -d 1 -o ./out -v
 ```
 
@@ -60,28 +72,8 @@ Examples:
 
 Debugging:
 - If a page doesn't match selectors, raw HTML is saved to output/debug/*.html for inspection.
-- Use --verbose to see per-file saved paths and debug messages.
+- Use -v for verbose to see per-file saved paths and debug messages.
 
-
-## Local testing
-
-Basic tests are included under `tests/`. To run tests:
-
-1. Install test deps (pytest is not required as dependency, install separately if needed):
-```bash
-pip install pytest
-```
-
-2. If you want to run JS-render tests, ensure Playwright and browsers are installed:
-```bash
-pip install playwright
-playwright install
-```
-
-3. Run tests:
-```bash
-pytest -q
-```
 
 Note: JS rendering tests will be automatically skipped if Playwright or browser binaries are not available.
 
