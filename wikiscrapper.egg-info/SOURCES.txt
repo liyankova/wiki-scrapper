@@ -8,6 +8,7 @@ wikiscrapper/cli.py
 wikiscrapper/core.py
 wikiscrapper/fetcher.py
 wikiscrapper/formatter.py
+wikiscrapper/github_helper.py
 wikiscrapper/robots.py
 wikiscrapper/storage.py
 wikiscrapper/utils.py

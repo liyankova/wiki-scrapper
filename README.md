@@ -1,6 +1,8 @@
 # WikiScrapper
 
 WikiScrapper is a CLI tool to scrape documentation and wiki pages and convert them into clean .txt or .md files suitable for LLM context.
+no AI things here, this scrape just work without any weird API outthere
+feed that wiki you scrape and feed it to your dumb AI
 
 This refactor focuses on:
 - Respecting robots.txt
@@ -39,37 +41,27 @@ playwright install
 
 ## Usage
 
-Main command:
 ```bash
-wikiscrapper scrape START_URL [OPTIONS]
+wikiscrapper run START_URL -s "article,.content" -d 1 -o ./out -v
 ```
 
-Example (no JS-render):
-```bash
-wikiscrapper scrape https://docs.example.com/getting-started \
-  --output my_docs \
-  --depth 2 \
-  --selector "article.doc-content" \
-  --format md \
-  --delay 1.0 \
-  --same-host \
-  --max-pages 100
-```
+Examples:
+- Auto-detect selector, compact:
+  wikiscrapper run https://wiki.example.com/es/get-started/ -o ./hypr -q
 
-Example (enable JS-render mode — may be slower and requires Playwright + browsers):
-```bash
-wikiscrapper scrape https://example-js-site.dev \
-  --selector "article" \
-  --format md \
-  --js-render
-```
+- Provide multiple selectors (fallback):
+  wikiscrapper run https://example.com/docs -s "article,main,.content" -o ~/scrapes/dank -v
 
-Options of note:
-- --selector: CSS selector for main content (important for clean extraction)
-- --same-host / --allow-external: restrict to same host by default
-- --max-pages: stop after X pages (0 = unlimited)
-- --checkpoint: path to checkpoint JSON for resume
-- --js-render: optional Playwright-based renderer to handle JS-heavy pages
+- Use Playwright to render JS-heavy sites:
+  wikiscrapper run https://example-js-site --js -o ./out -v
+
+- Start fresh and ignore checkpoint:
+  wikiscrapper run https://example.com -F -o ./out -v
+
+Debugging:
+- If a page doesn't match selectors, raw HTML is saved to output/debug/*.html for inspection.
+- Use --verbose to see per-file saved paths and debug messages.
+
 
 ## Local testing
 

@@ -1,6 +1,23 @@
 {
   "visited": [
-    "https://danklinux.com/docs"
+    "https://docs.noctalia.dev/getting-started/faq/",
+    "https://docs.noctalia.dev/getting-started/keybinds/",
+    "https://docs.noctalia.dev/configuration/general/",
+    "https://docs.noctalia.dev/configuration/bar/",
+    "https://docs.noctalia.dev/configuration/controlcenter/",
+    "https://docs.noctalia.dev/getting-started/running-the-shell/",
+    "https://docs.noctalia.dev/development/matugen/",
+    "https://docs.noctalia.dev/getting-started/nixos/",
+    "https://docs.noctalia.dev/development/guideline/",
+    "https://docs.noctalia.dev/development/widget/",
+    "https://docs.noctalia.dev/getting-started/advanced-app-theming/",
+    "https://docs.noctalia.dev/development/ipc/",
+    "https://docs.noctalia.dev/",
+    "https://docs.noctalia.dev/getting-started/app-theming/",
+    "https://docs.noctalia.dev/docs/",
+    "https://docs.noctalia.dev/getting-started/installation/",
+    "https://docs.noctalia.dev/getting-started/compositor-settings/",
+    "https://docs.noctalia.dev/development/colorscheme/"
   ],
   "queue": []
 }

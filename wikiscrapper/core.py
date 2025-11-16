@@ -8,14 +8,13 @@ import re
 
 from .fetcher import make_session, fetch
 from .robots import RobotsCache
-from .utils import normalize_url, is_same_domain, url_to_filepath, ensure_relative_link
+from .utils import normalize_url, is_same_domain, url_to_filepath, ensure_relative_link, detect_best_selector
 from .formatter import html_to_markdown, html_to_text, make_frontmatter
 from .storage import save_checkpoint, load_checkpoint
 from bs4 import BeautifulSoup
 import requests
 
 console = Console()
-
 
 def _choose_parser():
     try:
@@ -24,17 +23,15 @@ def _choose_parser():
     except Exception:
         return "html.parser"
 
-
 def _slugify(s: str) -> str:
     s = re.sub(r"[^A-Za-z0-9\-_\.]", "-", s)
     s = re.sub(r"-{2,}", "-", s)
     return s.strip("-")[:120] or "page"
 
-
 def run_scrape(
     start_url: str,
     output_dir: str,
-    selector: str = "main",
+    selector: str = None,
     max_depth: int = 1,
     user_agent: str = None,
     delay: float = 1.0,
@@ -46,11 +43,11 @@ def run_scrape(
     ignore_checkpoint: bool = False,
     quiet: bool = False,
     verbose: bool = False,
+    no_robots: bool = False,  # <-- new param to ignore robots.txt when True
 ):
     session = make_session()
-    headers = {"User-Agent": user_agent or "wikiscrapper/0.1 (+https://github.com/liyankova/wiki-scrapper)"}
+    headers = {"User-Agent": user_agent or "wikiscrapper/0.2 (+https://github.com/liyankova/wiki-scrapper)"}
     robots = RobotsCache()
-
     parser = _choose_parser()
 
     start_norm = normalize_url(start_url)
@@ -70,21 +67,28 @@ def run_scrape(
 
     pages_saved = 0
     pages_fetched = 0
+    skipped = 0
 
-    # Compact progress: print a single-line summary that updates each loop iteration.
+    # Prepare selectors: either user-provided (comma-separated) or None (auto)
+    if selector:
+        selectors = [s.strip() for s in selector.split(",") if s.strip()]
+    else:
+        selectors = None  # will auto-detect on first page
+
     def print_summary(newline=False):
-        summary = f"Fetched: {pages_fetched}  Saved: {pages_saved}  Queue: {len(queue)}"
+        summary = f"Fetched: {pages_fetched}  Saved: {pages_saved}  Skipped: {skipped}  Queue: {len(queue)}"
+        end_char = "\n" if newline else "\r"
         if quiet:
-            # use carriage return to keep single-line live summary
-            end_char = "\n" if newline else "\r"
             console.print(summary, end=end_char)
         else:
-            # when not quiet and not verbose, update one-line summary as well
-            end_char = "\n" if newline else "\r"
             console.print(summary, end=end_char)
 
-    # initial summary
     print_summary()
+
+    auto_detected_once = False
+    # If user explicitly passed no_robots, show a subtle confirmation in verbose
+    if no_robots and verbose:
+        console.print("[yellow]Note: robots.txt checks are disabled for this run (--no-robots).[/yellow]")
 
     while queue:
         current, depth = queue.popleft()
@@ -93,20 +97,28 @@ def run_scrape(
         if max_depth is not None and depth > max_depth:
             continue
         if max_pages and pages_saved >= max_pages:
-            console.print("[yellow]Reached max-pages limit.[/yellow]")
+            if verbose:
+                console.print("[yellow]Reached max-pages limit.[/yellow]")
             break
 
-        # robots check
-        if not robots.allowed(headers.get("User-Agent", "*"), current):
+        # robots check (skippable with no_robots)
+        if not no_robots:
+            if not robots.allowed(headers.get("User-Agent", "*"), current):
+                if verbose:
+                    console.print(f"[yellow]Skipping (robots): {current}[/yellow]")
+                visited.add(current)
+                print_summary()
+                continue
+        else:
+            # when ignoring robots, we may optionally log minimally if verbose
             if verbose:
-                console.print(f"[yellow]Skipping (robots): {current}[/yellow]")
-            visited.add(current)
-            continue
+                console.print(f"[yellow]Ignoring robots.txt for: {current}[/yellow]")
 
-        # fetch
         pages_fetched += 1
         if verbose:
             console.print(f"[{depth}/{max_depth}] Fetching: {current}")
+
+        # fetch (with optional js renderer)
         try:
             if js_render:
                 try:
@@ -131,26 +143,37 @@ def run_scrape(
             if verbose:
                 console.print(f"[red]Request failed:[/red] {e} (url={current})")
             visited.add(current)
-            # update summary
-            print_summary()
-            time.sleep(delay)
-            continue
-        except RuntimeError as e:
-            console.print(f"[red]Render error:[/red] {e} (url={current})")
-            visited.add(current)
             print_summary()
             time.sleep(delay)
             continue
 
-        # parse
+        # parse HTML
         try:
             soup = BeautifulSoup(resp.content, parser)
         except Exception:
             soup = BeautifulSoup(resp.content, "html.parser")
 
-        content_node = soup.select_one(selector)
+        # if selectors not set, auto-detect from first page
+        if selectors is None and not auto_detected_once:
+            candidates = detect_best_selector(resp.content.decode("utf-8", errors="ignore"))
+            selectors = candidates if candidates else ["main", "article", "div.content"]
+            auto_detected_once = True
+            if verbose:
+                console.print(f"[blue]Auto-detected selectors:[/blue] {selectors}")
+
+        # try selectors in order
+        content_node = None
+        used_sel = None
+        for sel in selectors:
+            node = soup.select_one(sel)
+            if node:
+                content_node = node
+                used_sel = sel
+                break
+
         if content_node is None:
-            # save debug HTML to help investigation
+            skipped += 1
+            # save debug HTML
             try:
                 debug_dir = Path(output_dir) / "debug"
                 debug_dir.mkdir(parents=True, exist_ok=True)
@@ -158,52 +181,47 @@ def run_scrape(
                 with fn.open("wb") as fh:
                     fh.write(resp.content)
                 if verbose:
-                    console.print(f"[yellow]Selector '{selector}' not found on {current}; saved debug HTML to {fn}[/yellow]")
-                else:
-                    # quiet mode: just update summary
-                    console.print(f"[yellow]Selector not found for one page; debug saved.[/yellow]")
+                    console.print(f"[yellow]No selector match on {current}; saved debug: {fn}[/yellow]")
             except Exception as e:
-                console.print(f"[red]Failed to save debug HTML:[/red] {e}")
+                if verbose:
+                    console.print(f"[red]Failed saving debug HTML:[/red] {e}")
             visited.add(current)
             print_summary()
             time.sleep(delay)
             continue
-        else:
-            title = soup.title.string.strip() if soup.title and soup.title.string else "Scraped Page"
-            front = make_frontmatter(current, title, selector)
-            if file_format == "md":
-                body = html_to_markdown(content_node)
-                final = front + "# " + title + "\n\n" + body
-            else:
-                body = html_to_text(content_node)
-                final = front + body
 
-            filepath = url_to_filepath(output_dir, current, file_format)
-            try:
-                with open(filepath, "w", encoding="utf-8") as f:
-                    f.write(final)
-                pages_saved += 1
-                # Print either verbose saved path or a compact saved counter
-                if verbose:
-                    console.print(f"[green]Saved:[/green] {filepath}")
-                else:
-                    # compact: only print a short confirmation for first few saves or when not quiet
-                    if not quiet:
-                        console.print(f"[green]Saved:[/green] {pages_saved} pages", end="\r")
-                # update summary
-                print_summary()
-            except Exception as e:
-                console.print(f"[red]Failed to write file:[/red] {e}")
+        # build output content
+        title = soup.title.string.strip() if soup.title and soup.title.string else "Scraped Page"
+        front = make_frontmatter(current, title, used_sel or selectors[0])
+        if file_format == "md":
+            body = html_to_markdown(content_node)
+            final = front + "# " + title + "\n\n" + body
+        else:
+            body = html_to_text(content_node)
+            final = front + body
+
+        filepath = url_to_filepath(output_dir, current, file_format)
+        try:
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(final)
+            pages_saved += 1
+            if verbose:
+                console.print(f"[green]Saved:[/green] {filepath}")
+            else:
+                # compact feedback
+                console.print(f"[green]Saved {pages_saved}[/green]", end="\r")
+        except Exception as e:
+            console.print(f"[red]Failed to write file:[/red] {e}")
 
         visited.add(current)
-        # politeness delay after processing content
+        print_summary()
         time.sleep(delay)
 
-        # find links and enqueue
+        # enqueue links
         if depth < max_depth:
             for a in soup.find_all("a", href=True):
                 href = a["href"].strip()
-                if href.startswith("mailto:") or href.startswith("tel:") or href.startswith("javascript:"):
+                if href.startswith(("mailto:", "tel:", "javascript:")):
                     continue
                 next_url = ensure_relative_link(current, href)
                 next_norm = normalize_url(next_url)
@@ -213,12 +231,11 @@ def run_scrape(
                     continue
                 queue.append((next_norm, depth + 1))
 
-        # periodic checkpoint save
+        # checkpoint save
         if pages_saved % 10 == 0:
             save_checkpoint(checkpoint_path, visited, list(queue))
 
-    # final checkpoint save
+    # final checkpoint + summary
     save_checkpoint(checkpoint_path, visited, list(queue))
-    # ensure the summary prints as last line with newline
     print_summary(newline=True)
-    console.print(f"[bold green]Done. Pages saved: {pages_saved}[/bold green]")
+    console.print(f"[bold green]Done. Fetched: {pages_fetched}, Saved: {pages_saved}, Skipped: {skipped}[/bold green]")
