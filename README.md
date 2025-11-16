@@ -1,139 +1,101 @@
 # WikiScrapper
 
-`WikiScrapper` is a simple CLI tool for grabbing the content from documentation sites. Its main goal is to turn messy web pages into clean, structured `.txt` or `.md` files that you can feed to an LLM as context.
+WikiScrapper is a CLI tool to scrape documentation and wiki pages and convert them into clean .txt or .md files suitable for LLM context.
 
-Stop the hallucinations. Feed it the facts.
-
-## What's it do?
-
-  * Crawls a site starting from any URL.
-  * Saves content as clean `.txt` or `.md` files.
-  * Keeps the original site's folder structure (so `.../guides/auth` becomes `output_dir/guides/auth.md`).
-  * Polite by default: adds a delay so you don't get IP-banned.
-  * Stamps each file with metadata (Source URL, date, etc.) so you (and your LLM) know where it came from.
+This refactor focuses on:
+- Respecting robots.txt
+- Robust network behavior (retries, timeouts)
+- URL normalization & deduplication
+- Safe file path generation
+- Cleaner Markdown/Text output with YAML frontmatter
+- Checkpointing for resume
+- Optional JS-render mode using Playwright (opt-in)
 
 ## Installation
 
-You'll need Python 3.8+ and `pip`.
+Requires Python 3.8+.
 
-1.  Clone this repo:
-
-<!-- end list -->
-
+1. Clone repo:
 ```bash
-git clone [https://github.com/nixval/wikiscrapper.git](https://github.com/YOUR_USERNAME/wikiscrapper.git)
+git clone https://github.com/liyankova/wikiscrapper.git
 cd wikiscrapper
 ```
 
-2.  Set up a virtual environment (trust me, it's good practice):
-
-<!-- end list -->
-
+2. Install in editable mode:
 ```bash
 python -m venv venv
-
-# On Linux/macOS (fish shell)
-source venv/bin/activate.fish
-
-# On Linux/macOS (bash/zsh)
 source venv/bin/activate
-
-# On Windows (PowerShell)
-.\venv\Scripts\Activate.ps1
-```
-
-3.  Install the tool in editable mode (`-e` means your changes to the code are live):
-
-<!-- end list -->
-
-```bash
 pip install -e .
 ```
 
-4.  You're ready\! Test it:
-
-<!-- end list -->
-
+3. (Optional) If you plan to use JS-render mode, install Playwright browsers:
 ```bash
-wikiscrapper --help
+# install Python package (already in dependencies if using pyproject)
+pip install playwright
+
+# install browser binaries (required)
+playwright install
 ```
 
 ## Usage
 
-The main command is `scrape`.
-
+Main command:
 ```bash
-wikiscrapper scrape [START_URL] [OPTIONS]
+wikiscrapper scrape START_URL [OPTIONS]
 ```
 
-### Example
-
-Let's say you want to scrape a (totally fictional) tech docs site. You've inspected the page and found the main content is inside an `<article class="doc-content">` tag.
-
-You'd run:
-
+Example (no JS-render):
 ```bash
-wikiscrapper scrape [https://docs.cool-framework.dev/en/concepts/getting-started/](https://docs.cool-framework.dev/en/concepts/getting-started/) \
-    --output "my_framework_docs" \
-    --depth 2 \
-    --selector "article.doc-content" \
-    --format "md" \
-    --delay 1.5
+wikiscrapper scrape https://docs.example.com/getting-started \
+  --output my_docs \
+  --depth 2 \
+  --selector "article.doc-content" \
+  --format md \
+  --delay 1.0 \
+  --same-host \
+  --max-pages 100
 ```
 
-This command will:
+Example (enable JS-render mode — may be slower and requires Playwright + browsers):
+```bash
+wikiscrapper scrape https://example-js-site.dev \
+  --selector "article" \
+  --format md \
+  --js-render
+```
 
-1.  Start at the `getting-started` page.
-2.  Follow links up to 2 levels deep (the start page + its links + *their* links).
-3.  Grab *only* the text inside `<article class="doc-content">`.
-4.  Save everything as `.md` files.
-5.  Save them inside the `./my_framework_docs/` folder, keeping the URL path.
-6.  Wait 1.5 seconds between requests.
+Options of note:
+- --selector: CSS selector for main content (important for clean extraction)
+- --same-host / --allow-external: restrict to same host by default
+- --max-pages: stop after X pages (0 = unlimited)
+- --checkpoint: path to checkpoint JSON for resume
+- --js-render: optional Playwright-based renderer to handle JS-heavy pages
 
-## Command Options
+## Local testing
 
-| Option | Shorthand | Description | Default |
-| --- | --- | --- | --- |
-| `(START_URL)` | (N/A) | The URL where the scraper should start. | **(Required)** |
-| `--output` | `-o` | The main folder to dump all the output files. | `llm_docs` |
-| `--depth` | `-d` | How many links deep to follow. `0` = just the start page, `1` = start page + its links. | `1` |
-| `--selector` | `-s` | **The most important part.** This is the CSS selector for the content you want to grab. | `main` |
-| `--format` | `-f` | Output format. Can be `txt` or `md`. | `txt` |
-| `--delay` | (N/A) | Time (in seconds) to wait between requests. Be a good internet citizen\! | `1.0` |
-| `--user-agent` | (N/A) | The User-Agent string to send. | (A default browser string) |
+Basic tests are included under `tests/`. To run tests:
 
-## How to Find the `--selector`
+1. Install test deps (pytest is not required as dependency, install separately if needed):
+```bash
+pip install pytest
+```
 
-The `--selector` flag is the key to getting clean data. It tells the scraper what part of the HTML to save and what to throw away (like navbars, sidebars, and footers).
+2. If you want to run JS-render tests, ensure Playwright and browsers are installed:
+```bash
+pip install playwright
+playwright install
+```
 
-1.  Go to your target site.
-2.  Right-click on the **main text** of the article.
-3.  Click **Inspect**.
-4.  Find the HTML tag that wraps *all* the content you want (and *only* that content).
-5.  This might be `<main>`, `<article>`, `<div id="content">`, or `<div class="prose">`.
-6.  Use that for your selector\!
-      * For `<main>`, use `--selector "main"`
-      * For `<div id="content">`, use `--selector "#content"`
-      * For `<article class="doc-content">`, use `--selector "article.doc-content"`
+3. Run tests:
+```bash
+pytest -q
+```
 
-## Disclaimer
+Note: JS rendering tests will be automatically skipped if Playwright or browser binaries are not available.
 
-`WikiScrapper` is provided for educational and personal use only.
+## Notes & Limitations
+- This tool targets static documentation pages by default. JS-heavy SPA sites may require `--js-render`.
+- Playwright increases dependencies and resource usage; use only when necessary.
+- Respect site Terms-of-Service and robots.txt rules.
 
-The end-user (you) is solely responsible for respecting the target website's `robots.txt` file and its Terms of Service (ToS). Some websites explicitly prohibit scraping in their ToS.
-
-Please use this tool responsibly and ensure you do not overload any servers. The developers of this tool are not responsible for any misuse or legal trouble you may encounter. **Scrape responsibly.**
-
-## Legal & Ethical Use Notice
-
-This project is intended solely for scraping publicly accessible, non-authenticated HTML content for educational, research, and personal use.
-WikiScrapper does not bypass login pages, paywalls, rate-limits, CAPTCHAs, or any other access control mechanisms, and it is not designed to circumvent technical protections of any kind.
-
-By using this tool, you agree that you are fully responsible for ensuring that scraping any target website is permitted under its Terms of Service, robots.txt rules, and applicable laws within your jurisdiction.
-The maintainers and contributors of this project do not endorse or assume liability for misuse, unauthorized data collection, or scraping activities that violate a website’s policies.
-
-Please scrape responsibly.
-
-## License
-
-MIT. Go nuts.
+MIT License

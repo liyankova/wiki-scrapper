@@ -1,9 +1,15 @@
 README.md
 pyproject.toml
+tests/test_renderer.py
+tests/test_utils.py
 wikiscrapper/__init__.py
 wikiscrapper/__main__.py
 wikiscrapper/cli.py
 wikiscrapper/core.py
+wikiscrapper/fetcher.py
+wikiscrapper/formatter.py
+wikiscrapper/robots.py
+wikiscrapper/storage.py
 wikiscrapper/utils.py
 wikiscrapper.egg-info/PKG-INFO
 wikiscrapper.egg-info/SOURCES.txt

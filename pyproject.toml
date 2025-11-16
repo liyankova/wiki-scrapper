@@ -10,14 +10,17 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = { text = "MIT" }
 authors = [
-    { name = "Nico Valianto Kusuma", email = "anda@email.com" },
+    { name = "liyankova", email = "liyannkova@gmail.com" },
 ]
 dependencies = [
     "requests",
     "beautifulsoup4",
     "typer[all]",
+    "markdownify",
+    "rich",
+    "playwright",
+    "lxml"
 ]
 
 [project.scripts]
-# Ini adalah kuncinya! Ini membuat perintah 'wikiscrapper' di terminal Anda
 wikiscrapper = "wikiscrapper.cli:app"

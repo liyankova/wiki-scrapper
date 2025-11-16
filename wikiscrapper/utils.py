@@ -1,33 +1,51 @@
-# wikiscrapper/utils.py
-import os
-from urllib.parse import urlparse
+import re
+from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode, urljoin
+from pathlib import Path
 
-def get_and_prepare_filepath(current_url, output_dir, file_format):
+def normalize_url(url: str) -> str:
     """
-    Creates a nested file path based on the URL structure,
-    ensures directories exist, and applies the correct file extension.
+    Normalize a URL for deduplication:
+    - ensure scheme exists
+    - lowercase scheme & host
+    - remove fragment
+    - sort query params
     """
-    parsed = urlparse(current_url)
-    path = parsed.path.strip('/')
-    
-    if path.endswith(('.html', '.htm', '.aspx', '.php')):
-        path = path.rsplit('.', 1)[0]
-    
-    extension = f".{file_format}"
-    
-    if not path:
-        return os.path.join(output_dir, 'index' + extension)
+    p = urlparse(url)
+    scheme = p.scheme or "http"
+    netloc = p.netloc.lower()
+    path = p.path or "/"
+    query = urlencode(sorted(parse_qsl(p.query)), doseq=True)
+    return urlunparse((scheme, netloc, path, "", query, ""))
 
-    relative_filepath = os.path.join(*path.split('/')) + extension
-    final_filepath = os.path.join(output_dir, relative_filepath)
-    
-    directory = os.path.dirname(final_filepath)
-    if not os.path.exists(directory):
-        os.makedirs(directory, exist_ok=True)
-        
-    return final_filepath
+def is_same_domain(url: str, base_domain: str) -> bool:
+    p = urlparse(url)
+    return p.netloc.lower() == base_domain.lower()
 
-def is_valid_url(url, base_domain):
-    """Checks if a URL belongs to the base domain."""
-    parsed_url = urlparse(url)
-    return parsed_url.netloc == base_domain
+def slugify_segment(segment: str, max_len: int = 120) -> str:
+    seg = segment.strip()
+    seg = re.sub(r'[^A-Za-z0-9\-_\.]', '-', seg)
+    seg = re.sub(r'-{2,}', '-', seg)
+    return seg.strip('-')[:max_len] or "segment"
+
+def url_to_filepath(output_root: str, url: str, file_format: str) -> str:
+    """
+    Convert URL to safe filepath under output_root.
+    Example: https://example.com/docs/intro -> output_root/example.com/docs/intro.md
+    """
+    p = urlparse(url)
+    host = slugify_segment(p.netloc)
+    parts = [slugify_segment(s) for s in p.path.split('/') if s and s != '/']
+    if not parts:
+        filename = "index"
+        dirpath = Path(output_root) / host
+    else:
+        filename = parts[-1]
+        dirpath = Path(output_root) / host / Path("/".join(parts[:-1])) if len(parts) > 1 else Path(output_root) / host
+    dirpath.mkdir(parents=True, exist_ok=True)
+    return str((dirpath / f"{filename}.{file_format}").resolve())
+
+def ensure_relative_link(base_url: str, href: str):
+    """
+    Resolve relative hrefs to absolute URL using base_url.
+    """
+    return urljoin(base_url, href)
