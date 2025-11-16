@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wikiscrapper"
+version = "0.1.0"
+description = "A professional CLI tool to scrape documentation sites for LLM context."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [
+    { name = "Nico Valianto Kusuma", email = "anda@email.com" },
+]
+dependencies = [
+    "requests",
+    "beautifulsoup4",
+    "typer[all]",
+]
+
+[project.scripts]
+# Ini adalah kuncinya! Ini membuat perintah 'wikiscrapper' di terminal Anda
+wikiscrapper = "wikiscrapper.cli:app"

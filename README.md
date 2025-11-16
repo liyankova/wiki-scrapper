@@ -1,0 +1,129 @@
+# WikiScrapper
+
+`WikiScrapper` is a simple CLI tool for grabbing the content from documentation sites. Its main goal is to turn messy web pages into clean, structured `.txt` or `.md` files that you can feed to an LLM as context.
+
+Stop the hallucinations. Feed it the facts.
+
+## What's it do?
+
+  * Crawls a site starting from any URL.
+  * Saves content as clean `.txt` or `.md` files.
+  * Keeps the original site's folder structure (so `.../guides/auth` becomes `output_dir/guides/auth.md`).
+  * Polite by default: adds a delay so you don't get IP-banned.
+  * Stamps each file with metadata (Source URL, date, etc.) so you (and your LLM) know where it came from.
+
+## Installation
+
+You'll need Python 3.8+ and `pip`.
+
+1.  Clone this repo:
+
+<!-- end list -->
+
+```bash
+git clone [https://github.com/nixval/wikiscrapper.git](https://github.com/YOUR_USERNAME/wikiscrapper.git)
+cd wikiscrapper
+```
+
+2.  Set up a virtual environment (trust me, it's good practice):
+
+<!-- end list -->
+
+```bash
+python -m venv venv
+
+# On Linux/macOS (fish shell)
+source venv/bin/activate.fish
+
+# On Linux/macOS (bash/zsh)
+source venv/bin/activate
+
+# On Windows (PowerShell)
+.\venv\Scripts\Activate.ps1
+```
+
+3.  Install the tool in editable mode (`-e` means your changes to the code are live):
+
+<!-- end list -->
+
+```bash
+pip install -e .
+```
+
+4.  You're ready\! Test it:
+
+<!-- end list -->
+
+```bash
+wikiscrapper --help
+```
+
+## Usage
+
+The main command is `scrape`.
+
+```bash
+wikiscrapper scrape [START_URL] [OPTIONS]
+```
+
+### Example
+
+Let's say you want to scrape a (totally fictional) tech docs site. You've inspected the page and found the main content is inside an `<article class="doc-content">` tag.
+
+You'd run:
+
+```bash
+wikiscrapper scrape [https://docs.cool-framework.dev/en/concepts/getting-started/](https://docs.cool-framework.dev/en/concepts/getting-started/) \
+    --output "my_framework_docs" \
+    --depth 2 \
+    --selector "article.doc-content" \
+    --format "md" \
+    --delay 1.5
+```
+
+This command will:
+
+1.  Start at the `getting-started` page.
+2.  Follow links up to 2 levels deep (the start page + its links + *their* links).
+3.  Grab *only* the text inside `<article class="doc-content">`.
+4.  Save everything as `.md` files.
+5.  Save them inside the `./my_framework_docs/` folder, keeping the URL path.
+6.  Wait 1.5 seconds between requests.
+
+## Command Options
+
+| Option | Shorthand | Description | Default |
+| --- | --- | --- | --- |
+| `(START_URL)` | (N/A) | The URL where the scraper should start. | **(Required)** |
+| `--output` | `-o` | The main folder to dump all the output files. | `llm_docs` |
+| `--depth` | `-d` | How many links deep to follow. `0` = just the start page, `1` = start page + its links. | `1` |
+| `--selector` | `-s` | **The most important part.** This is the CSS selector for the content you want to grab. | `main` |
+| `--format` | `-f` | Output format. Can be `txt` or `md`. | `txt` |
+| `--delay` | (N/A) | Time (in seconds) to wait between requests. Be a good internet citizen\! | `1.0` |
+| `--user-agent` | (N/A) | The User-Agent string to send. | (A default browser string) |
+
+## How to Find the `--selector`
+
+The `--selector` flag is the key to getting clean data. It tells the scraper what part of the HTML to save and what to throw away (like navbars, sidebars, and footers).
+
+1.  Go to your target site.
+2.  Right-click on the **main text** of the article.
+3.  Click **Inspect**.
+4.  Find the HTML tag that wraps *all* the content you want (and *only* that content).
+5.  This might be `<main>`, `<article>`, `<div id="content">`, or `<div class="prose">`.
+6.  Use that for your selector\!
+      * For `<main>`, use `--selector "main"`
+      * For `<div id="content">`, use `--selector "#content"`
+      * For `<article class="doc-content">`, use `--selector "article.doc-content"`
+
+## Disclaimer
+
+`WikiScrapper` is provided for educational and personal use only.
+
+The end-user (you) is solely responsible for respecting the target website's `robots.txt` file and its Terms of Service (ToS). Some websites explicitly prohibit scraping in their ToS.
+
+Please use this tool responsibly and ensure you do not overload any servers. The developers of this tool are not responsible for any misuse or legal trouble you may encounter. **Scrape responsibly.**
+
+## License
+
+MIT. Go nuts.

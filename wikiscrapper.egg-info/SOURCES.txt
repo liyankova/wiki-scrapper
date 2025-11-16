@@ -1,0 +1,13 @@
+README.md
+pyproject.toml
+wikiscrapper/__init__.py
+wikiscrapper/__main__.py
+wikiscrapper/cli.py
+wikiscrapper/core.py
+wikiscrapper/utils.py
+wikiscrapper.egg-info/PKG-INFO
+wikiscrapper.egg-info/SOURCES.txt
+wikiscrapper.egg-info/dependency_links.txt
+wikiscrapper.egg-info/entry_points.txt
+wikiscrapper.egg-info/requires.txt
+wikiscrapper.egg-info/top_level.txt
