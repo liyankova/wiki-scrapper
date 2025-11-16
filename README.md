@@ -124,6 +124,16 @@ The end-user (you) is solely responsible for respecting the target website's `ro
 
 Please use this tool responsibly and ensure you do not overload any servers. The developers of this tool are not responsible for any misuse or legal trouble you may encounter. **Scrape responsibly.**
 
+## Legal & Ethical Use Notice
+
+This project is intended solely for scraping publicly accessible, non-authenticated HTML content for educational, research, and personal use.
+WikiScrapper does not bypass login pages, paywalls, rate-limits, CAPTCHAs, or any other access control mechanisms, and it is not designed to circumvent technical protections of any kind.
+
+By using this tool, you agree that you are fully responsible for ensuring that scraping any target website is permitted under its Terms of Service, robots.txt rules, and applicable laws within your jurisdiction.
+The maintainers and contributors of this project do not endorse or assume liability for misuse, unauthorized data collection, or scraping activities that violate a website’s policies.
+
+Please scrape responsibly.
+
 ## License
 
 MIT. Go nuts.
